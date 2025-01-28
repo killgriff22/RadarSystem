@@ -175,13 +175,7 @@ function Update()
         if Physics.RayCast( Radar.Position+(angle*0.1), angle, maxdistance ) then
             local distance, position, normal, colliderInstanceID = Physics.QueryCastHit( 0 )
             local pos = rotatepointvect3(Vector2.__new( distance , -5 ), angle)
-            for i, hit in ipairs(hits) do
-                if hit[1] == pos then
-                    hit[2] = 60
-                    return
-                end
-            end
-            append(hits, {pos, maxframetime})
+            shapes.AddQuad( pos, Vector2.__new( 10, 10 ), Colour.__new( 0, 255, 0, 255 ) )
         end
     end
 end
