@@ -1,3 +1,11 @@
+local maxdistance = 300
+local maxframetime = 20
+local rays = 100
+local arcangle = 15
+local minerror = 5
+
+
+
 local Radar = nil
 local localplayer = LocalPlayer.value
 local win = nil
@@ -7,16 +15,13 @@ local collabel = nil
 local rotlabel = nil
 local shapes = nil
 local hits = {}
-local maxdistance = 500
-local maxframetime = 150
-local rays = 300
-local arcangle = 60
 local Zero = Vector2.__new(0,0)
 local One = Vector2.__new(1,1)
 local first = Vector2.__new(1,1)
 local second = Vector2.__new(-1,1)
 local third = Vector2.__new(-1,-1)
 local fourth = Vector2.__new(1,-1)
+local lasthitpos = nil
 function tablelength(T)
     local count = 0
     for _ in pairs(T) do count = count + 1 end
@@ -39,10 +44,10 @@ function pop(t, i)
     return value 
 end
 function degsToRads(degs)
-    return degs * math.pi / 180
+    return degs * (math.pi / 180)
 end
 function radsToDegs(rads)
-    return rads * 180 / math.pi
+    return rads * (180 / math.pi)
 end
 local function SpawnRadar()
     print('Spawning radar')
@@ -98,6 +103,17 @@ local function CreateButton(x,y,w,h,txt,win,clickfunc)
     btn.OnClick.add(clickfunc)
     return btn
 end
+local function createSlider(x,y,w,h,win, min, max, default, step, txt, slidefunc)
+    local slider = win.CreateSlider()
+    slider.SetAlignment(align_RightEdge,  x, w)
+    slider.SetAlignment(align_TopEdge,  y, h)
+    slider.Min = min
+    slider.Max = max
+    slider.Value = default
+    slider.Step = step
+    slider.OnValueChanged.add(slidefunc)
+    return slider
+end
 local function onWindowClose()
     UnloadScript.Raise(ScriptName) -- Window closed, so unload this script.
 end
@@ -145,7 +161,6 @@ function Update()
         return
     end
     shapes.Clear()
-
     local shapesRect = shapes.PixelRect
     local edge = shapesRect.Size.x
     -- rotate line to match radar forward
@@ -160,22 +175,41 @@ function Update()
         end 
     end
     poslabel.Text = Radar.Position
-    rotlabel.Text = Radar.Forward
+    local turndirection = Radar.Forward
+    rotlabel.Text = turndirection
     local point = Vector2.__new(edge,0)
-    point = rotatepointvect3(point, -Radar.Forward)
+    point = rotatepointvect3(point, -turndirection+Radar.Right)
     --shapes.AddLine({Zero, point}, 5)
     point = rotatepoint(point, degsToRads(arcangle/2))
     shapes.AddLine({Zero, point}, 5)
     point = rotatepoint(point, -degsToRads(arcangle))
     shapes.AddLine({Zero, point}, 5)
     for i=1, rays do
-        local angle = -Radar.Forward
+        local angle = -turndirection
         angle = angle - angle2vect3(degsToRads(arcangle/2))
         angle = angle + angle2vect3(degsToRads(arcangle/(rays-1)*i))
         if Physics.RayCast( Radar.Position+(angle*0.1), angle, maxdistance ) then
             local distance, position, normal, colliderInstanceID = Physics.QueryCastHit( 0 )
-            local pos = rotatepointvect3(Vector2.__new( distance , -5 ), angle)
+            angle= angle + Radar.Right
+            local pos = rotatepointvect3(Vector2.__new( distance , 0 ), angle)
             shapes.AddQuad( pos, Vector2.__new( 10, 10 ), Colour.__new( 0, 255, 0, 255 ) )
+            local posxwhole = math.floor(pos.x)
+            local posywhole = math.floor(pos.y)
+            local dontadd = false
+            for i, hit in ipairs(hits) do
+                local hitpos = hit[1]
+                local hitxwhole = math.floor(hitpos.x)
+                local hitywhole = math.floor(hitpos.y)
+                --if posxwhole is within 10 of hitxwhole and posywhole is within 10 of hitywhole
+                if math.abs(posxwhole - hitxwhole) < minerror and math.abs(posywhole - hitywhole) < minerror then
+                    hits[i][2] = maxframetime
+                    dontadd = true
+                    break
+                end
+            end
+            if not dontadd then
+                --append(hits, {pos, maxframetime})
+            end
         end
     end
 end
